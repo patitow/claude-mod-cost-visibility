@@ -1,0 +1,23 @@
+{
+  "name": "cost-visibility",
+  "version": "0.1.0",
+  "description": "Live cost, context, and plan-quota meters above the Claude Code prompt. Type /spend for the detail pane. Caps expensive /code-review fan-out.",
+  "author": {
+    "name": "patitow",
+    "url": "https://github.com/patitow"
+  },
+  "homepage": "https://github.com/patitow/claude-mod-cost-visibility",
+  "repository": "https://github.com/patitow/claude-mod-cost-visibility",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "claude-mod",
+    "mod",
+    "cost",
+    "usage",
+    "quota",
+    "context",
+    "spend",
+    "visibility"
+  ]
+}
