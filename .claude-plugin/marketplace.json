@@ -5,14 +5,14 @@
     "url": "https://github.com/patitow"
   },
   "metadata": {
-    "description": "Claude Code mod: live cost, context, and plan-quota meters above the prompt — plus caps on expensive /code-review fan-out.",
-    "version": "0.1.0"
+    "description": "Claude Code mod: live cost, context, and plan-quota meters above the prompt. Requires a Nerd Font in your terminal for icons.",
+    "version": "0.1.1"
   },
   "plugins": [
     {
       "name": "cost-visibility",
       "source": "./plugins/cost-visibility",
-      "description": "Colored Nerd Font band above the prompt with session $, main vs subagent burn, context meter, and 5h/7d plan windows. Type /spend for the detail pane. Optionally blocks /code-review max|xhigh|ultra and background agent fan-out."
+      "description": "Colored band above the prompt with session $, main vs subagent burn, context meter, and 5h/7d plan windows. Nerd Font required for icons. Type /spend for the detail pane."
     }
   ]
 }

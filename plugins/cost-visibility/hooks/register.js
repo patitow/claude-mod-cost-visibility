@@ -230,6 +230,21 @@ export function register(on) {
     lastUsage = await readUsage($)
     const total = costUsd(lastUsage)
     if (total != null) lastCostSeen = total
+
+    // Icons need a Nerd Font in the terminal — remind once per machine.
+    try {
+      const key = 'nerdFontHintShown'
+      if (!$.store.get(key)) {
+        $.store.set(key, true)
+        await $.ui.toast(
+          'cost-visibility: set a Nerd Font as your terminal font for icons (meters work either way). See README.',
+          { timeoutMs: 8000 },
+        )
+      }
+    } catch {
+      /* toast/store unavailable — non-fatal */
+    }
+
     $.ui.invalidate('ui.render')
     return next(e)
   })

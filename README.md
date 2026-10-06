@@ -6,9 +6,37 @@
 
 ![Claude Code](https://img.shields.io/badge/Claude_Code-mod-0F0F0F?style=flat-square)
 ![Requires](https://img.shields.io/badge/requires-≥2.1.287-blue?style=flat-square)
+![Nerd Font](https://img.shields.io/badge/Nerd_Font-required_for_icons-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
+## Requirements
+
+| | |
+| --- | --- |
+| **Claude Code** | ≥ **2.1.287** (mods / function hooks) |
+| **Nerd Font** | **Required for icons** in the band. Without one you get □ / tofu boxes; meters and numbers still work. |
+
+Pick any [Nerd Font](https://www.nerdfonts.com/font-downloads) (JetBrains Mono, FiraCode, Hack, …), install it, then set it as your **terminal font**.
+
+```bash
+# check
+./scripts/check-nerd-font.sh
+
+# macOS example
+brew install --cask font-jetbrains-mono-nerd-font
+```
+
+Then: terminal settings → Font → choose a face with **“Nerd Font”** in the name.
+
 ## Install
+
+Helper (checks Nerd Font + prints commands):
+
+```bash
+git clone https://github.com/patitow/claude-mod-cost-visibility.git
+cd claude-mod-cost-visibility
+./install.sh
+```
 
 ### Marketplace (recommended)
 
@@ -57,8 +85,6 @@ Two-line band above the prompt (colors + Nerd Font icons + meter bars):
 - **`/spend`** — side pane with the full breakdown (Refresh / Close)
 
 > Dollars are **API list-price estimates** (same yardstick as Claude’s cost ledger). On a Team/subscription plan they are a burn meter, not your invoice. Org monthly spend still lives in claude.ai → Usage (Owners).
-
-Needs a **Nerd Font** in the terminal for icons (without it you get tofu boxes; meters still work).
 
 ## How it works
 
