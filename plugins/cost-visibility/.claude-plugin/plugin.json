@@ -1,7 +1,7 @@
 {
   "name": "cost-visibility",
-  "version": "0.1.1",
-  "description": "Live cost, context, and plan-quota meters above the Claude Code prompt (Nerd Font required for icons). Type /spend for the detail pane.",
+  "version": "0.2.0",
+  "description": "Live cost, context, and plan-quota meters above the Claude Code prompt (Nerd Font required for icons). Type /spend for the detail pane. Optional cost guards via /spend caps on.",
   "author": {
     "name": "patitow",
     "url": "https://github.com/patitow"
@@ -20,5 +20,13 @@
     "spend",
     "visibility",
     "nerd-font"
-  ]
+  ],
+  "userConfig": {
+    "costGuards": {
+      "type": "boolean",
+      "title": "Cost guards",
+      "description": "When on, block /code-review max|xhigh|ultra|braba, background agents, and multi-angle review fan-out. Off by default (HUD only). Toggle with /spend caps on|off or /config.",
+      "default": false
+    }
+  }
 }

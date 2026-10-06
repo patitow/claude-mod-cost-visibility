@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code mod: live cost, context, and plan-quota meters above the prompt. Requires a Nerd Font in your terminal for icons.",
-    "version": "0.1.1"
+    "version": "0.2.0"
   },
   "plugins": [
     {

@@ -86,11 +86,24 @@ Two-line band above the prompt (colors + Nerd Font icons + meter bars):
 
 > Dollars are **API list-price estimates** (same yardstick as Claude’s cost ledger). On a Team/subscription plan they are a burn meter, not your invoice. Org monthly spend still lives in claude.ai → Usage (Owners).
 
+### Optional: cost guards (off by default)
+
+By default this mod is **HUD only**. If you want it to also block expensive patterns:
+
+```text
+/spend caps on     # block /code-review max|xhigh|ultra|braba, background agents, multi-angle fan-out
+/spend caps off    # back to HUD only
+/spend caps        # status
+```
+
+Same toggle lives under `/config` → **Cost guards** (`costGuards`, default `false`).
+
 ## How it works
 
 - `$.session.usage()` → `cost.usd`, `context`, `rateLimits`
 - `ui.render` → `AbovePrompt` band + `Spinner` suffix + `Pane`
 - `turn.complete` → attributes cost deltas to main vs `agentId`
+- Optional `prompt.submit` / `agent.spawn` gates when `costGuards` is on
 
 No network calls. Nothing is sent to the model from this mod.
 

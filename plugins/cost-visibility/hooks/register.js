@@ -3,7 +3,8 @@
 // Note: "/cost" is reserved (alias of built-in /usage) — use /spend for the pane.
 
 const PANE_ID = 'cost-visibility'
-const MAX_TRANSCRIPT_MB = 12
+const CAPS_CONFIG_KEY = 'cost-visibility.costGuards'
+const CAPS_STORE_KEY = 'costGuards'
 
 const LIMIT_LABEL = {
   five_hour: '5h',
@@ -189,13 +190,40 @@ async function openPane($) {
   return result
 }
 
-export function register(on) {
+/** Persist costGuards via userConfig; store is a same-session fallback. */
+async function writeCapsConfig($, enabled) {
+  try {
+    $.store.set(CAPS_STORE_KEY, enabled === true)
+  } catch {
+    /* optional */
+  }
+  try {
+    const result = await $.config.set({
+      key: CAPS_CONFIG_KEY,
+      value: enabled === true,
+    })
+    if (result?.deny) {
+      return { ok: false, reason: String(result.deny), persisted: 'denied' }
+    }
+    return { ok: true, persisted: 'config' }
+  } catch (err) {
+    return {
+      ok: true,
+      persisted: 'session-store',
+      reason: err?.message || 'config.set unavailable; kept for this session via store',
+    }
+  }
+}
+
+export function register(on, raw = {}) {
   let lastUsage = null
   let toolCalls = 0
   let agentSpawns = 0
   let lastCostSeen = 0
   let mainCostUsd = 0
   let agentCostUsd = 0
+  /** Live flag — default off (HUD only). Synced from userConfig / /spend caps / /config. */
+  let capsOn = raw?.costGuards === true
   /** @type {Map<string, { type: string, description: string, usd: number, turns: number }>} */
   const agents = new Map()
 
@@ -221,12 +249,23 @@ export function register(on) {
     try {
       await $.command.register({
         name: 'spend',
-        description: 'Open cost / context / rate-limit pane (band is always on)',
-        argumentHint: '[close]',
+        description:
+          'Cost HUD pane. /spend · /spend close · /spend caps [on|off]',
+        argumentHint: '[close|caps on|caps off]',
       })
     } catch {
       /* optional */
     }
+
+    // Options from manifest win; store covers in-session toggle before reload.
+    try {
+      if (raw?.costGuards === true) capsOn = true
+      else if (raw?.costGuards === false) capsOn = false
+      else if ($.store.get(CAPS_STORE_KEY) === true) capsOn = true
+    } catch {
+      /* keep capsOn */
+    }
+
     lastUsage = await readUsage($)
     const total = costUsd(lastUsage)
     if (total != null) lastCostSeen = total
@@ -249,6 +288,19 @@ export function register(on) {
     return next(e)
   })
 
+  // Keep live flag in sync when the person toggles via /config UI.
+  on('config.set', { key: CAPS_CONFIG_KEY }, async ($, e, next) => {
+    const result = await next(e)
+    capsOn = (result?.value ?? e.value) === true
+    try {
+      $.store.set(CAPS_STORE_KEY, capsOn)
+    } catch {
+      /* optional */
+    }
+    $.ui.invalidate('ui.render')
+    return result
+  }).catch((_$, e, next) => next(e))
+
   on('session.measure', async ($, e, next) => {
     lastUsage = await readUsage($)
     $.ui.invalidate('ui.render')
@@ -270,22 +322,26 @@ export function register(on) {
 
   on('agent.spawn', async ($, e, next) => {
     agentSpawns += 1
-    const desc = String(e.description || e.prompt || '').toLowerCase()
-    const bg =
-      e.runInBackground === true || e.run_in_background === true || e.background === true
-    if (
-      desc.includes('code-review max') ||
-      desc.includes('5+5 angles') ||
-      desc.includes('multi-angle') ||
-      /angle [a-e]:/.test(desc)
-    ) {
-      return {
-        deny: 'cost-visibility: multi-angle / code-review max agents banned. Use /code-review medium|high.',
+    if (capsOn) {
+      const desc = String(e.description || e.prompt || '').toLowerCase()
+      const bg =
+        e.runInBackground === true ||
+        e.run_in_background === true ||
+        e.background === true
+      if (
+        desc.includes('code-review max') ||
+        desc.includes('5+5 angles') ||
+        desc.includes('multi-angle') ||
+        /angle [a-e]:/.test(desc)
+      ) {
+        return {
+          deny: 'cost-visibility: multi-angle / code-review max agents banned (cost guards on). Use /code-review medium|high, or /spend caps off.',
+        }
       }
-    }
-    if (bg) {
-      return {
-        deny: 'cost-visibility: background agents disabled (prevents parallel fan-out).',
+      if (bg) {
+        return {
+          deny: 'cost-visibility: background agents disabled (cost guards on). /spend caps off to allow.',
+        }
       }
     }
     const result = await next(e)
@@ -300,11 +356,17 @@ export function register(on) {
     }
     $.ui.invalidate('ui.render')
     return result
-  }).catch(() => ({
-    deny: 'cost-visibility: agent.spawn hook error — denying spawn as fail-closed',
-  }))
+  }).catch(($, e, next) => {
+    if (capsOn) {
+      return {
+        deny: 'cost-visibility: agent.spawn hook error — denying spawn (cost guards on, fail-closed)',
+      }
+    }
+    return next(e)
+  })
 
   on('prompt.submit', async ($, e, next) => {
+    if (!capsOn) return next(e)
     const text = String(e.text || '').toLowerCase()
     if (
       (text.includes('/code-review') || text.includes('/review')) &&
@@ -316,7 +378,7 @@ export function register(on) {
         text.includes('5+5'))
     ) {
       return {
-        drop: 'cost-visibility: /code-review max|xhigh|ultra|braba banned. Try: /code-review medium',
+        drop: 'cost-visibility: /code-review max|xhigh|ultra|braba blocked (cost guards on). Try /code-review medium, or /spend caps off.',
       }
     }
     return next(e)
@@ -325,12 +387,58 @@ export function register(on) {
   on('command.run', { command: 'spend' }, async ($, e) => {
     lastUsage = await readUsage($)
     const args = String(e.args || '').trim()
-    if (args === 'close') {
+    const words = args.split(/\s+/).filter(Boolean)
+
+    if (words[0] === 'close') {
       await $.ui.close(PANE_ID)
       return { text: 'Closed cost pane.' }
     }
+
+    if (words[0] === 'caps' || words[0] === 'guards') {
+      const action = (words[1] || 'status').toLowerCase()
+      if (action === 'status' || action === '') {
+        return {
+          text:
+            'Cost guards: ' +
+            (capsOn ? 'ON' : 'OFF') +
+            ' (default OFF = HUD only).\n' +
+            'Toggle: /spend caps on · /spend caps off\n' +
+            'Also: /config → cost-visibility → Cost guards',
+        }
+      }
+      if (action === 'on' || action === 'true' || action === '1') {
+        capsOn = true
+        const r = await writeCapsConfig($, true)
+        $.ui.invalidate('ui.render')
+        return {
+          text:
+            'Cost guards ON — blocking /code-review max|xhigh|ultra|braba, background agents, multi-angle fan-out.' +
+            (r.persisted === 'config' ? '' : '\n(' + (r.reason || 'session-only until config persists') + ')'),
+        }
+      }
+      if (action === 'off' || action === 'false' || action === '0') {
+        capsOn = false
+        const r = await writeCapsConfig($, false)
+        $.ui.invalidate('ui.render')
+        return {
+          text:
+            'Cost guards OFF — HUD only, no blocks from this mod.' +
+            (r.persisted === 'config' ? '' : '\n(' + (r.reason || 'session-only until config persists') + ')'),
+        }
+      }
+      return {
+        text: 'Usage: /spend caps [on|off|status]',
+      }
+    }
+
     await openPane($)
-    return { text: summarize(lastUsage) + '\n(Side pane open · /spend close to dismiss)' }
+    return {
+      text:
+        summarize(lastUsage) +
+        '\nGuards ' +
+        (capsOn ? 'ON' : 'OFF') +
+        ' · pane open · /spend close · /spend caps on|off',
+    }
   })
 
   function summarize(usage) {
@@ -543,15 +651,12 @@ export function register(on) {
       limitMd +
       '\n\n## Subagents\n\n' +
       agentMd +
-      '\n\n## Caps (this mod)\n\n' +
-      '- `/code-review` max|xhigh|ultra|braba → blocked\n' +
-      '- Background agents → blocked\n' +
-      '- Multi-angle review agents → blocked\n' +
-      '- Mega transcripts (>' +
-      MAX_TRANSCRIPT_MB +
-      'MB) blocked by `~/.claude/hooks/cost-guard/`\n\n' +
-      '_Org **monthly** spend: Team Owners → claude.ai → Usage. ' +
-      'Session / 5h / 7d windows reset on their own clocks._\n\n' +
+      '\n\n## Cost guards\n\n' +
+      (capsOn
+        ? '**ON** — blocking `/code-review` max|xhigh|ultra|braba, background agents, multi-angle fan-out.\n'
+        : '**OFF** (default) — HUD only, no blocks from this mod.\n') +
+      'Toggle: `/spend caps on` · `/spend caps off` · `/config`\n\n' +
+      '_Org **monthly** spend: Team Owners → claude.ai → Usage._\n\n' +
       '- Session `' +
       $.session.id() +
       '`\n' +
