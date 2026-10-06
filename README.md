@@ -4,6 +4,8 @@
 
 > Burned an org monthly spend on a `/code-review max` fan-out once. Never again.
 
+![demo](./assets/demo.gif)
+
 ![Claude Code](https://img.shields.io/badge/Claude_Code-mod-0F0F0F?style=flat-square)
 ![Requires](https://img.shields.io/badge/requires-≥2.1.287-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
